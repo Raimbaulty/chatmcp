@@ -1,0 +1,52 @@
+name: 部署到 GitHub Pages
+
+on:
+  push:
+    branches: [ main ] # 当有代码推送到 main 分支时触发
+
+# 部署到 Pages 需要为 GITHUB_TOKEN 设置特殊权限
+permissions:
+  contents: read
+  pages: write      # 写入 Pages 的权限
+  id-token: write   # OIDC 身份验证的权限
+
+jobs:
+  # 构建任务
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 设置 Flutter 环境，和之前一样
+      - name: 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      # 构建 Flutter Web 应用
+      # 确保 base-href 和你的仓库名称匹配
+      - name: 构建 Flutter Web
+        run: flutter build web --release --base-href /chatmcp/
+
+      # 上传构建产物
+      - name: 上传 GitHub Pages 构建产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # 包含静态文件的目录路径
+          path: ./build/web
+
+  # 部署任务
+  deploy:
+    needs: build # 这个任务只在 build 任务成功后运行
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }} # 部署后的 URL 会显示在 Actions 日志中
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
